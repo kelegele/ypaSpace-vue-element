@@ -2,41 +2,41 @@
   <div>
     <div class="container">
       <sticky :z-index="10" class-name="sub-navbar">
-        <el-button style="margin-right: 20px;" type="primary">
+        <el-input v-model="listQuery.name" placeholder="文件名" prefix-icon="el-icon-search" style="width: 200px;" class="filter-item" @keyup.enter.native="handleFilter" />
+        <el-button v-waves style="margin-right: 20px;" class="filter-item" type="primary" icon="el-icon-search" @click="handleSearch">
+          查找文件
+        </el-button>
+        <el-button v-waves style="margin-right: 20px;" type="primary" icon="el-icon-upload" @click="handleUpload">
           上传
         </el-button>
-        <el-button style="margin-right: 20px;" type="primary">
+        <el-button v-waves style="margin-right: 20px;" type="primary" icon="el-icon-download" @click="handleDownload">
           下载
         </el-button>
-        <el-button style="margin-right: 20px;" type="success">
+        <el-button v-waves style="margin-right: 20px;" type="success" icon="el-icon-folder-add" @click="handleNewFolder">
           新建文件夹
         </el-button>
 
-        <el-input
-          v-model="searchInput"
-          class="searchInput"
-          type="text"
-          autosize
-          placeholder="搜索文件"
-          prefix-icon="el-icon-search"
-        />
       </sticky>
     </div>
 
     <div class="container dir">
       <el-breadcrumb separator-class="el-icon-arrow-right">
-        <el-breadcrumb-item>username</el-breadcrumb-item>
-        <el-breadcrumb-item>files</el-breadcrumb-item>
+        <el-breadcrumb-item>
+          {{ name }}
+        </el-breadcrumb-item>
+        <el-breadcrumb-item v-for="item in currentPaths" :key="item.index">
+          <el-link :underline="false" @click="onClickPath(item)"> {{ item.path }}</el-link>
+        </el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
     <div class="container main">
       <div class="grid">
         <div v-for="item in currentDir" :key="item.name">
-          <div class="item">
-            <i v-if="item.type === 'dir'" class="el-icon-folder" />
+          <div class="item" @click="onItemClick(item)">
+            <i v-if="item.fileType === 'dir'" class="el-icon-folder" />
             <i v-else class="el-icon-document" />
-            <span>{{ item.name }}</span>
+            <span><el-link> {{ item.fileName }}</el-link></span>
           </div>
         </div>
       </div>
@@ -46,18 +46,83 @@
 
 <script>
 import Sticky from '@/components/Sticky'
+import waves from '@/directive/waves'
+import { mapGetters } from 'vuex'
 
 export default {
   name: 'PrivateSpace',
   components: { Sticky },
+  directives: { waves },
   data() {
     return {
       searchInput: '',
-      currentDir: [
-        { type: 'flie', name: '文件' },
-        { type: 'dir', name: '文件夹1' },
-        { type: 'dir', name: '文件夹2' }
-      ]
+      currentPaths: [],
+      currentDir: [],
+      listQuery: {
+        page: 1,
+        limit: 20,
+        name: undefined
+      },
+      itemSelected: [],
+      isCtrl: false,
+      isShift: false
+    }
+  },
+  computed: {
+    ...mapGetters([
+      'name'
+    ])
+  },
+  created() {
+    this.keyevent()
+    this.getFiles('/')
+  },
+
+  methods: {
+    handleSearch() { },
+    handleUpload() {},
+    handleDownload() {},
+    handleNewFolder() { },
+    keyevent() {
+      var that = this
+      document.onkeydown = function(e) { // 按下键盘
+        switch (e.keyCode) {
+          case 16:
+            that.isShift = true
+            break
+          case 17:
+            that.isCtrl = true
+            break
+        }
+      }
+      document.onkeyup = function(e) { // 放弃键盘
+        switch (e.keyCode) {
+          case 16:
+            that.isShift = false
+            break
+          case 17:
+            that.isCtrl = false
+            break
+        }
+      }
+    },
+    onItemClick(item) {
+      if (this.isCtrl) {
+        console.log('ctrl', item)
+      } else {
+        console.log('no', item)
+      }
+    },
+    onClickPath(item) {
+    },
+    getFiles(path) {
+      console.log(path)
+      this.$store.dispatch('files/getFiles', path).then((response) => {
+        this.currentDir = response.currentDir
+        this.currentPaths = response.currentPaths
+        console.log('res', this)
+      }).catch(() => {
+      })
     }
   }
 }
@@ -90,15 +155,16 @@ export default {
 }
 
 .item {
-  margin: 20px;
-  height: 85px;
+  padding: 20px;
+  padding-top: 30px;
   text-align: center;
-  width: 100px;
-  float: left;
   font-size: 30px;
   color: #24292e;
   cursor: pointer;
 }
+.item:hover {
+  background-color: rgb(235, 235, 235);
+  }
 
 span {
   display: block;

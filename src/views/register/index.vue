@@ -1,9 +1,16 @@
 <template>
-  <div class="login-container">
-    <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" auto-complete="on" label-position="left">
+  <div class="reg-container">
+    <el-form
+      ref="regForm"
+      :model="regForm"
+      status-icon
+      :rules="rules"
+      label-width="0"
+      class="reg-form"
+    >
 
       <div class="title-container">
-        <h3 class="title">用户登录</h3>
+        <h3 class="title">用户注册</h3>
       </div>
 
       <el-form-item prop="username">
@@ -12,7 +19,7 @@
         </span>
         <el-input
           ref="username"
-          v-model="loginForm.username"
+          v-model="regForm.username"
           placeholder="用户名"
           name="username"
           type="text"
@@ -28,68 +35,90 @@
         <el-input
           :key="passwordType"
           ref="password"
-          v-model="loginForm.password"
+          v-model="regForm.password"
           :type="passwordType"
           placeholder="密码"
           name="password"
           tabindex="2"
           auto-complete="on"
-          @keyup.enter.native="handleLogin"
         />
         <span class="show-pwd" @click="showPwd">
           <svg-icon :icon-class="passwordType === 'password' ? 'eye' : 'eye-open'" />
         </span>
       </el-form-item>
 
-      <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">登录</el-button>
+      <el-form-item prop="confirmPassword">
+        <span class="svg-container">
+          <svg-icon icon-class="password" />
+        </span>
+        <el-input
+          :key="passwordType"
+          ref="confirmPassword"
+          v-model="regForm.confirmPassword"
+          :type="passwordType"
+          placeholder="确认密码"
+          name="confirmPassword"
+          tabindex="2"
+          auto-complete="on"
+          @keyup.enter.native="submitForm"
+        />
+      </el-form-item>
+
+      <el-button
+        :loading="loading"
+        type="primary"
+        style="width:100%;margin-bottom:30px;"
+        @click.native.prevent="submitForm('regForm')"
+      >注册</el-button>
 
       <div class="tips">
-        <span style="margin-right:20px;">没有账户？ 点击 <el-link type="primary" @click.native.prevent="handleReg">注册</el-link></span>
+        <span style="margin-right:20px;">
+          已有帐户？ 点击
+          <el-link type="primary" @click.native.prevent="gotoLogin">登录</el-link>
+        </span>
       </div>
     </el-form>
   </div>
 </template>
 
 <script>
-import { validUsername } from '@/utils/validate'
-
 export default {
-  name: 'Login',
+  name: 'Register',
   data() {
-    const validateUsername = (rule, value, callback) => {
-      if (!validUsername(value)) {
-        callback(new Error('请输入用户名！'))
+    // <!--验证密码-->
+    const validatePass = (rule, value, callback) => {
+      if (value === '') {
+        callback(new Error('请输入密码'))
       } else {
+        if (this.regForm.confirmPassword !== '') {
+          this.$refs.regForm.validateField('confirmPassword')
+        }
         callback()
       }
     }
-    const validatePassword = (rule, value, callback) => {
-      if (value.length < 6) {
-        callback(new Error('密码需要6个字符！'))
+    // <!--二次验证密码-->
+    const validatePass2 = (rule, value, callback) => {
+      if (value === '') {
+        callback(new Error('请再次输入密码'))
+      } else if (value !== this.regForm.password) {
+        callback(new Error('两次输入密码不一致!'))
       } else {
         callback()
       }
     }
     return {
-      loginForm: {
-        username: '',
-        password: ''
-      },
-      loginRules: {
-        username: [{ required: true, trigger: 'blur', validator: validateUsername }],
-        password: [{ required: true, trigger: 'blur', validator: validatePassword }]
-      },
       loading: false,
-      passwordType: 'password',
-      redirect: undefined
-    }
-  },
-  watch: {
-    $route: {
-      handler: function(route) {
-        this.redirect = route.query && route.query.redirect
+      regForm: {
+        username: '',
+        password: '',
+        confirmPassword: ''
       },
-      immediate: true
+      passwordType: 'password',
+      rules: {
+        password: [{ validator: validatePass, trigger: 'change' }],
+        confirmPassword: [{ validator: validatePass2, trigger: 'change' }]
+      },
+      flag: true
     }
   },
   methods: {
@@ -103,12 +132,17 @@ export default {
         this.$refs.password.focus()
       })
     },
-    handleLogin() {
-      this.$refs.loginForm.validate(valid => {
+    // <!--提交注册-->
+    submitForm(formName) {
+      this.$refs[formName].validate(valid => {
         if (valid) {
           this.loading = true
-          this.$store.dispatch('user/login', this.loginForm).then(() => {
-            this.$router.push({ path: this.redirect || '/' })
+          this.$store.dispatch('user/register', this.regForm).then((response) => {
+            const { data } = response
+            this.$message({
+              message: data,
+              type: 'success'
+            })
             this.loading = false
           }).catch(() => {
             this.loading = false
@@ -119,10 +153,9 @@ export default {
         }
       })
     },
-    handleReg() {
-      this.$router.push({
-        path: '/register'
-      })
+    // <!--进入登录页-->
+    gotoLogin() {
+      this.$router.go(-1)
     }
   }
 }
@@ -132,18 +165,18 @@ export default {
 /* 修复input 背景不协调 和光标变色 */
 /* Detail see https://github.com/PanJiaChen/vue-element-admin/pull/927 */
 
-$bg:#283443;
-$light_gray:#fff;
+$bg: #283443;
+$light_gray: #fff;
 $cursor: #fff;
 
 @supports (-webkit-mask: none) and (not (cater-color: $cursor)) {
-  .login-container .el-input input {
+  .reg-container .el-input input {
     color: $cursor;
   }
 }
 
 /* reset element-ui css */
-.login-container {
+.reg-container {
   .el-input {
     display: inline-block;
     height: 47px;
@@ -176,17 +209,17 @@ $cursor: #fff;
 </style>
 
 <style lang="scss" scoped>
-$bg:#2d3a4b;
-$dark_gray:#889aa4;
-$light_gray:#eee;
+$bg: #2d3a4b;
+$dark_gray: #889aa4;
+$light_gray: #eee;
 
-.login-container {
+.reg-container {
   min-height: 100%;
   width: 100%;
   background-color: $bg;
   overflow: hidden;
 
-  .login-form {
+  .reg-form {
     position: relative;
     width: 520px;
     max-width: 100%;
