@@ -7,3 +7,27 @@ export function getFiles(params) {
     params
   })
 }
+
+export function existFile(params) {
+  return request({
+    url: '/api/file/exist',
+    method: 'get',
+    params
+  })
+}
+
+export function mkdirFile(params) {
+  return request({
+    url: '/api/file/mkdir',
+    method: 'get',
+    params
+  })
+}
+
+export function deleteFile(params) {
+  return request({
+    url: '/api/file/delete',
+    method: 'get',
+    params
+  })
+}

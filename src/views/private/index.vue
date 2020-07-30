@@ -1,15 +1,15 @@
 <template>
   <div>
     <div class="container">
-      <sticky :z-index="10" class-name="sub-navbar">
+      <div class="sub-navbar">
         <el-input v-model="listQuery.name" placeholder="文件名" prefix-icon="el-icon-search" style="width: 200px;" class="filter-item" @keyup.enter.native="handleFilter" />
         <el-button v-waves style="margin-right: 20px;" class="filter-item" type="primary" icon="el-icon-search" @click="handleSearch">
           查找文件
         </el-button>
 
-        <el-button v-waves style="margin-right: 20px;" icon="el-icon-upload" type="primary" @click="dialogVisible = true">上传</el-button>
+        <el-button v-waves style="margin-right: 20px;" icon="el-icon-upload" type="primary" @click="beforeUpload(token)">上传</el-button>
 
-        <el-dialog title="上传文件" :visible.sync="dialogVisible">
+        <el-dialog title="上传文件到..." :visible.sync="dialogUploadVisible">
 
           <el-breadcrumb separator-class="el-icon-arrow-right" class="dialog-dir">
             <el-breadcrumb-item>
@@ -22,28 +22,53 @@
 
           <el-upload
             class="upload"
-            action="https://jsonplaceholder.typicode.com/posts/"
-            :before-remove="beforeRemove"
-            show-file-list="false"
+            :action="uploadUrl"
+            :data="uploadData"
+            :http-request="uploadFile(getCurrentPath())"
             multiple
+            :on-success="uploadSuccess"
+            :on-error="uploadErr"
             :limit="5"
             :on-exceed="handleExceed"
             :file-list="fileList"
           >
-            <el-button v-waves style="margin-right: 20px;" type="primary" icon="el-icon-upload" @click="handleUpload">
+            <el-button v-waves style="margin-right: 20px;" type="primary" icon="el-icon-upload">
               上传
             </el-button>
+            <div slot="tip" class="el-upload__tip">同名文件将会被覆盖，文件且不超过1000kb</div>
           </el-upload>
         </el-dialog>
 
-        <el-button v-waves style="margin-right: 20px;" type="primary" icon="el-icon-download" @click="handleDownload">
+        <el-button v-waves style="margin-right: 20px;" type="primary" icon="el-icon-download" @click="dialogDownloadVisible = true">
           下载
         </el-button>
+        <el-dialog title="删除文件" :visible.sync="dialogDownloadVisible">
+          <el-table ref="downloadSelected" :data="currentDir" @selection-change="handleDownloadSelectionChange">
+            <el-table-column type="selection" width="55" />
+            <el-table-column property="fileName" label="文件名" />
+            <el-table-column property="filePath" label="文件目录" />
+          </el-table>
+          <el-button v-waves style="margin-top: 30px;" type="primary" icon="el-icon-download" @click="handleDownload(downloadSelected)">下载</el-button>
+        </el-dialog>
+
         <el-button v-waves style="margin-right: 20px;" type="success" icon="el-icon-folder-add" @click="handleNewFolder">
           新建文件夹
         </el-button>
 
-      </sticky>
+        <el-button v-waves style="margin-right: 20px;" type="danger" icon="el-icon-delete" @click="dialogDeleteVisible = true">
+          删除文件
+        </el-button>
+
+        <el-dialog title="删除文件" :visible.sync="dialogDeleteVisible">
+          <el-table ref="delSelected" :data="currentDir" @selection-change="handleDelSelectionChange">
+            <el-table-column type="selection" width="55" />
+            <el-table-column property="fileName" label="文件名" />
+            <el-table-column property="filePath" label="文件目录" />
+          </el-table>
+          <el-button v-waves style="margin-top: 30px;" type="danger" icon="el-icon-delete" @click="handleDelete(delSelected)">确认删除</el-button>
+        </el-dialog>
+
+      </div>
     </div>
 
     <div class="container dir">
@@ -72,18 +97,20 @@
 </template>
 
 <script>
-import Sticky from '@/components/Sticky'
 import waves from '@/directive/waves'
 import { mapGetters } from 'vuex'
 
 export default {
   name: 'PrivateSpace',
-  components: { Sticky },
   directives: { waves },
   data() {
     return {
-      dialogVisible: false,
+      dialogUploadVisible: false,
+      dialogDeleteVisible: false,
+      dialogDownloadVisible: false,
       searchInput: '',
+      delSelected: [],
+      downloadSelected: [],
       currentPaths: [],
       currentDir: [],
       listQuery: {
@@ -93,13 +120,16 @@ export default {
       },
       itemSelected: [],
       fileList: [],
+      uploadUrl: '/api/file/upload',
+      uploadData: { 'token': '55555', 'path': 'token' },
       isCtrl: false,
       isShift: false
     }
   },
   computed: {
     ...mapGetters([
-      'name'
+      'name',
+      'token'
     ])
   },
   created() {
@@ -109,31 +139,54 @@ export default {
 
   methods: {
     handleSearch() { },
-    handleUpload() {},
-    handleDownload() {},
+    handleDownload() {
+      console.log('download list', this.downloadSelected)
+    },
+    handleDownloadSelectionChange(value) {
+      console.log('Download change', value)
+      this.downloadSelected = value
+    },
     handleNewFolder() {
       this.$prompt('请输入文件夹名称', '新建文件夹', {
         confirmButtonText: '确定',
         cancelButtonText: '取消'
       }).then(({ value }) => {
-        this.$message({
-          type: 'success',
-          message: '新建文件夹: ' + value
-        })
-
         console.log(value, this.currentPaths)
-        let path = '/'
-        this.currentPaths.forEach(element => {
-          path = path + '/' + element.path
-        })
-        path = path + '/' + value
+        const path = this.getCurrentPath() + '/' + value
         console.log('NewFolder', path)
+
+        this.existFile(path)
+        this.mkdirFile(path)
+        this.$message({
+          type: 'info',
+          message: '新建文件夹：' + value
+        })
       }).catch(() => {
         this.$message({
           type: 'info',
           message: '取消输入'
         })
       })
+    },
+    handleDelSelectionChange(value) {
+      console.log('Del change', value)
+      this.delSelected = value
+    },
+    handleDelete(fileList) {
+      console.log('handleDelete', fileList)
+      for (let i = 0; i < fileList.length; i++) {
+        this.deleteFile(fileList[i].filePath)
+      }
+      const uPath = this.getCurrentPath()
+
+      this.getFiles(uPath)
+    },
+    getCurrentPath() {
+      let uPath = '/'
+      this.currentPaths.forEach(element => {
+        uPath = uPath + '/' + element.path
+      })
+      return uPath
     },
     keyevent() {
       var that = this
@@ -190,20 +243,83 @@ export default {
       this.getFiles(uPath)
     },
     getFiles(path) {
-      console.log(path)
+      console.log('getFiles', path)
       this.$store.dispatch('files/getFiles', path).then((response) => {
         this.currentDir = response.currentDir
         this.currentPaths = response.currentPaths
-        console.log('res', this)
+        console.log('getFiles res', response)
       }).catch(() => {
       })
     },
+    mkdirFile(path) {
+      console.log('mkdirFile', path)
+      this.$store.dispatch('files/mkdirFile', path).then((response) => {
+        console.log('mkdirFile res', response)
 
-    handleExceed(files, fileList) {
-      this.$message.warning(`当前限制选择 3 个文件，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件`)
+        const uPath = this.getCurrentPath()
+        this.getFiles(uPath)
+      }).catch(() => {
+      })
     },
-    beforeRemove(file, fileList) {
-      return this.$confirm(`确定移除 ${file.name}？`)
+    existFile(path) {
+      console.log('existFile', path)
+      this.$store.dispatch('files/existFile', path).then((response) => {
+        console.log('existFile res', response)
+        if (response) {
+          this.$message({
+            type: 'info',
+            message: '已存在文件夹: ' + path
+          })
+        } else {
+          this.$message({
+            type: 'info',
+            message: '不存在文件夹: ' + path
+          })
+        }
+      }).catch(() => {
+      })
+      return false
+    },
+    deleteFile(path) {
+      console.log('deleteFile', path)
+      this.$store.dispatch('files/deleteFile', path).then((response) => {
+        console.log('deleteFile res', response)
+        if (response) {
+          this.$message({
+            type: 'info',
+            message: '已删除: ' + path
+          })
+        } else {
+          this.$message({
+            type: 'info',
+            message: '删除失败: ' + path
+          })
+        }
+        this.getFiles()
+      }).catch(() => {
+      })
+    },
+    handleExceed(files, fileList) {
+      this.$message.warning(`超出限制：本次选择了 ${files.length} 个文件，每次限制5个文件！`)
+    },
+    uploadSuccess(response, file, fileList) {
+      console.log('uploadSuccess', file)
+      this.$message.success(response.message + file.name)
+      this.getFiles(this.getCurrentPath())
+      this.fileList = []
+    },
+    uploadErr(err, file, fileList) {
+      this.$message.error(err)
+    },
+    beforeUpload(token) {
+      this.dialogUploadVisible = true
+      this.fileList = []
+      const uPath = this.getCurrentPath()
+      this.uploadData = { token: token, path: uPath }
+      console.log('beforeUpload', this.uploadData)
+    },
+    uploadFile(path) {
+      console.log('uploadFile', path)
     }
   }
 }
