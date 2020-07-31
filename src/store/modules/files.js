@@ -1,4 +1,4 @@
-import { getFiles, existFile, mkdirFile, deleteFile } from '@/api/files'
+import { getFiles, existFile, mkdirFile, deleteFile, downloadFile } from '@/api/files'
 import { getToken } from '@/utils/auth'
 
 const getDefaultState = () => {
@@ -69,6 +69,21 @@ const actions = {
 
         if (!data) {
           return reject('文件删除失败')
+        }
+
+        resolve(data)
+      }).catch(error => {
+        reject(error)
+      })
+    })
+  },
+  downloadFile({ state }, path) {
+    return new Promise((resolve, reject) => {
+      downloadFile({ path: path.trim(), token: state.token }).then(response => {
+        const { data } = response
+
+        if (!data) {
+          return reject('文件下载失败')
         }
 
         resolve(data)

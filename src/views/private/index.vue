@@ -24,7 +24,6 @@
             class="upload"
             :action="uploadUrl"
             :data="uploadData"
-            :http-request="uploadFile(getCurrentPath())"
             multiple
             :on-success="uploadSuccess"
             :on-error="uploadErr"
@@ -134,6 +133,7 @@ export default {
   },
   created() {
     this.keyevent()
+    console.log('private created')
     this.getFiles('/')
   },
 
@@ -317,9 +317,6 @@ export default {
       const uPath = this.getCurrentPath()
       this.uploadData = { token: token, path: uPath }
       console.log('beforeUpload', this.uploadData)
-    },
-    uploadFile(path) {
-      console.log('uploadFile', path)
     }
   }
 }
@@ -357,6 +354,7 @@ export default {
   position: relative;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-rows: repeat(auto-fill, minmax(50px, 1fr));
 }
 
 .item-link{
@@ -371,6 +369,10 @@ export default {
   font-size: 30px;
   color: #24292e;
   cursor: pointer;
+  position: relative;
+  width: 125px;
+  height: 125px;
+  overflow: hidden;
 }
 .item:hover {
   background-color: rgb(235, 235, 235);

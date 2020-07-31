@@ -31,3 +31,11 @@ export function deleteFile(params) {
     params
   })
 }
+
+export function downloadFile(params) {
+  return request({
+    url: '/api/file/download',
+    method: 'post',
+    params
+  })
+}

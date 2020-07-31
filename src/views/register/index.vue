@@ -82,17 +82,22 @@
 </template>
 
 <script>
+import { validUsername } from '@/utils/validate'
+
 export default {
   name: 'Register',
   data() {
-    // <!--验证密码-->
-    const validatePass = (rule, value, callback) => {
-      if (value === '') {
-        callback(new Error('请输入密码'))
+    const validateUsername = (rule, value, callback) => {
+      if (!validUsername(value)) {
+        callback(new Error('请输入用户名！'))
       } else {
-        if (this.regForm.confirmPassword !== '') {
-          this.$refs.regForm.validateField('confirmPassword')
-        }
+        callback()
+      }
+    }
+    const validatePassword = (rule, value, callback) => {
+      if (value.length < 6) {
+        callback(new Error('密码需要6个字符！'))
+      } else {
         callback()
       }
     }
@@ -115,7 +120,8 @@ export default {
       },
       passwordType: 'password',
       rules: {
-        password: [{ validator: validatePass, trigger: 'change' }],
+        username: [{ required: true, trigger: 'blur', validator: validateUsername }],
+        password: [{ required: true, validator: validatePassword, trigger: 'change' }],
         confirmPassword: [{ validator: validatePass2, trigger: 'change' }]
       },
       flag: true
