@@ -80,13 +80,7 @@ const actions = {
   downloadFile({ state }, path) {
     return new Promise((resolve, reject) => {
       downloadFile({ path: path.trim(), token: state.token }).then(response => {
-        const { data } = response
-
-        if (!data) {
-          return reject('文件下载失败')
-        }
-
-        resolve(data)
+        resolve(response)
       }).catch(error => {
         reject(error)
       })

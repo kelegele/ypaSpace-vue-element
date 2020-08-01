@@ -98,6 +98,7 @@
 <script>
 import waves from '@/directive/waves'
 import { mapGetters } from 'vuex'
+import { getFiles } from '../../api/files'
 
 export default {
   name: 'PrivateSpace',
@@ -220,8 +221,11 @@ export default {
       }
 
       if (item.fileType === 'dir') {
-        console.log('path', item.filePath)
+        console.log('dir path', item.filePath)
         this.getFiles(item.filePath)
+      } else {
+        console.log('file path', item.filePath)
+        this.downloadFile(item.filePath)
       }
     },
     onClickPath(path) {
@@ -289,6 +293,7 @@ export default {
             type: 'info',
             message: '已删除: ' + path
           })
+          getFiles(path)
         } else {
           this.$message({
             type: 'info',
@@ -296,6 +301,38 @@ export default {
           })
         }
         this.getFiles()
+      }).catch(() => {
+      })
+    },
+    downloadFile(path) {
+      console.log('downloadFile', path)
+      const self = this
+      this.$store.dispatch('files/downloadFile', path).then((response) => {
+        const { res, filename } = response
+        console.log('downloadFile res', res)
+
+        if (res) {
+          //eslint -disable-next-line
+          const blob = new Blob([res])
+          // 对于<a>标签，只有 Firefox 和 Chrome（内核） 支持 download 属性
+          // IE10以上支持blob但是依然不支持download
+          if ('download' in document.createElement('a')) {
+            // 支持a标签download的浏览器
+            const link = document.createElement('a')// 创建a标签
+            link.download = filename// a标签添加属性
+            link.style.display = 'none'
+            link.href = URL.createObjectURL(blob)
+            document.body.appendChild(link)
+            link.click()// 执行下载
+            URL.revokeObjectURL(link.href) // 释放url
+            document.body.removeChild(link)// 释放标签
+          } else {
+            navigator.msSaveBlob(blob, filename)
+          }
+          self.$message.success('下载文件：' + path)
+        } else {
+          self.$message.warning('转化word文件失败，请检查文件并且重试！')
+        }
       }).catch(() => {
       })
     },

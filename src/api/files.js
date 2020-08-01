@@ -35,7 +35,9 @@ export function deleteFile(params) {
 export function downloadFile(params) {
   return request({
     url: '/api/file/download',
-    method: 'post',
+    method: 'get',
+    headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }, // 定义相应头
+    responseType: 'blob',
     params
   })
 }
